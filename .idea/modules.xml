@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+<<<<<<< HEAD
       <module fileurl="file://$PROJECT_DIR$/.idea/mon-quiz.iml" filepath="$PROJECT_DIR$/.idea/mon-quiz.iml" />
+=======
+      <module fileurl="file://$PROJECT_DIR$/.idea/StarterExpoReactNative.iml" filepath="$PROJECT_DIR$/.idea/StarterExpoReactNative.iml" />
+>>>>>>> master
     </modules>
   </component>
 </project>

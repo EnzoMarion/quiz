@@ -20,8 +20,7 @@ export default function QuestionForm({ onSave }) {
 
     const updateOptions = (num) => {
         const numInt = parseInt(num, 10);
-        if (isNaN(numInt) || numInt < 2) {
-            alert("Veuillez entrer un nombre valide supérieur ou égal à 2 !");
+        if (isNaN(numInt) || numInt ) {
             return;
         }
         const newOptions = Array.from({ length: numInt }, (_, i) => options[i] || "");

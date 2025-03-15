@@ -19,13 +19,20 @@ export default function QuestionForm({ onSave }) {
     };
 
     const updateOptions = (num) => {
+        console.log("updateOptions called with:", num);
+        setNumOptions(num);
+        if (num === "") {
+            return;
+        }
         const numInt = parseInt(num, 10);
-        if (isNaN(numInt) || numInt ) {
+        console.log("Parsed numInt:", numInt);
+        if (isNaN(numInt) || numInt < 2) {
+            alert("Veuillez entrer un nombre valide supérieur ou égal à 2 !");
+            setNumOptions("4");
             return;
         }
         const newOptions = Array.from({ length: numInt }, (_, i) => options[i] || "");
         setOptions(newOptions);
-        setNumOptions(num);
         if (correctIndex >= numInt) setCorrectIndex(0);
     };
 

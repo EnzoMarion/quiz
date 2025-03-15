@@ -1,95 +1,137 @@
 import { useState, useEffect } from "react";
-import { ScrollView, View, Text, TextInput, Button, Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { View, Text, TextInput, Button, StyleSheet, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import QuestionForm from "./components/QuestionForm";
-import Scoreboard from "./components/Scoreboard";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Font from "expo-font";
+import { LinearGradient } from "expo-linear-gradient";
+import NeonText from "../components/NeonText";
+import { theme } from "../styles/theme";
+
+const { width, height } = Dimensions.get("window");
 
 export default function Home() {
-    const [questions, setQuestions] = useState([]);
-    const [scores, setScores] = useState([]);
     const [playerName, setPlayerName] = useState("");
+    const [numQuestions, setNumQuestions] = useState("4");
+    const [questions, setQuestions] = useState([]);
+    const [fontLoaded, setFontLoaded] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
-        const loadQuestions = async () => {
-            const savedQuestions = await AsyncStorage.getItem("questions");
-            if (savedQuestions) setQuestions(JSON.parse(savedQuestions));
-        };
-        loadQuestions();
+        async function loadResources() {
+            try {
+                await Promise.race([
+                    Font.loadAsync({
+                        "SpaceMono-Regular": require("../assets/fonts/SpaceMono-Regular.ttf"),
+                        "Orbitron-Bold": require("../assets/fonts/Orbitron-Bold.ttf"),
+                    }),
+                    new Promise((resolve) => setTimeout(resolve, 5000)),
+                ]);
+                setFontLoaded(true);
+            } catch (error) {
+                console.error("Erreur lors du chargement des polices:", error);
+                setFontLoaded(true);
+            }
 
-        const loadScores = async () => {
-            const savedScores = await AsyncStorage.getItem("scores");
-            if (savedScores) setScores(JSON.parse(savedScores));
-        };
-        loadScores();
+            const loadQuestions = async () => {
+                try {
+                    const savedQuestions = await AsyncStorage.getItem("questions");
+                    if (savedQuestions) setQuestions(JSON.parse(savedQuestions));
+                } catch (error) {
+                    console.error("Erreur lors du chargement des questions:", error);
+                }
+            };
+            loadQuestions();
+        }
+        loadResources();
     }, []);
 
-    const addQuestion = (newQuestions) => {
-        setQuestions(newQuestions);
-    };
-
-    const addScore = async (name, points) => {
-        const newScore = { name, points };
-        const savedScores = await AsyncStorage.getItem("scores");
-        const currentScores = savedScores ? JSON.parse(savedScores) : [];
-        currentScores.push(newScore);
-        await AsyncStorage.setItem("scores", JSON.stringify(currentScores));
-        setScores(currentScores);
-    };
-
-    const deleteQuestion = async (index) => {
-        const updatedQuestions = questions.filter((_, i) => i !== index);
-        await AsyncStorage.setItem("questions", JSON.stringify(updatedQuestions));
-        setQuestions(updatedQuestions);
-    };
-
     const startQuiz = () => {
-        if (!playerName.trim() || questions.length < 4) {
-            Alert.alert("Erreur", "Ajoute au moins 4 questions et un nom valide !");
+        const numQ = parseInt(numQuestions, 10);
+        if (!playerName.trim() || questions.length < numQ || numQ < 1) {
+            alert(`Ajoute au moins ${numQ} questions et un nom valide !`);
             return;
         }
-        console.log("Navigating to /quiz with:", { playerName, questions }); // Log pour déboguer
         router.push({
             pathname: "/quiz",
-            params: { playerName, questions: JSON.stringify(questions) },
+            params: { playerName, questions: JSON.stringify(questions), numQuestions },
         });
     };
 
+    if (!fontLoaded) {
+        return (
+            <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Chargement...</Text>
+            </View>
+        );
+    }
+
     return (
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-            <Text style={{ fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 20 }}>
-                Quiz App
-            </Text>
-            <QuestionForm onSave={addQuestion} />
-            <View style={{ padding: 16, borderWidth: 1, borderRadius: 10, marginBottom: 20 }}>
-                <Text style={{ fontSize: 18, fontWeight: "bold" }}>Nouvelle Partie</Text>
+        <LinearGradient
+            colors={["#0d1b2a", "#1a1a1a"]}
+            style={styles.gradient}
+        >
+            <View style={styles.container}>
+                <NeonText style={styles.title}>Bienvenue sur Quiz App</NeonText>
                 <TextInput
-                    style={{ borderWidth: 1, padding: 8, marginVertical: 8 }}
+                    style={styles.input}
                     placeholder="Nom du joueur"
+                    placeholderTextColor={theme.colors.textSecondary}
                     value={playerName}
                     onChangeText={setPlayerName}
                 />
-                <Button title="Commencer" onPress={startQuiz} />
+                <TextInput
+                    style={styles.input}
+                    placeholder="Nombre de questions (ex: 4, 8, 10...)"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={numQuestions}
+                    onChangeText={setNumQuestions}
+                    keyboardType="numeric"
+                />
+                <Button
+                    title="Commencer la partie"
+                    onPress={startQuiz}
+                    color={theme.colors.electricBlue}
+                />
             </View>
-            <Scoreboard scores={scores} setScores={setScores} />
-
-            <View style={{ padding: 16, borderWidth: 1, borderRadius: 10, marginTop: 20 }}>
-                <Text style={{ fontSize: 18, fontWeight: "bold" }}>Questions Créées</Text>
-                {questions.length === 0 ? (
-                    <Text style={{ paddingVertical: 5 }}>Aucune question créée.</Text>
-                ) : (
-                    questions.map((q, index) => (
-                        <View key={index} style={{ marginVertical: 5 }}>
-                            <Text style={{ fontWeight: "bold" }}>{q.question}</Text>
-                            <Text>Type: {q.type === "vraiFaux" ? "Vrai/Faux" : "QCM"}</Text>
-                            <Text>Options: {q.options.join(", ")}</Text>
-                            <Text>Bonne réponse: {q.options[q.correctIndex]}</Text>
-                            <Button title="Supprimer" onPress={() => deleteQuestion(index)} color="red" />
-                        </View>
-                    ))
-                )}
-            </View>
-        </ScrollView>
+        </LinearGradient>
     );
 }
+
+const styles = StyleSheet.create({
+    gradient: {
+        flex: 1,
+    },
+    container: {
+        flex: 1,
+        paddingHorizontal: width * 0.03,
+        paddingVertical: height * 0.02,
+        justifyContent: "center",
+    },
+    title: {
+        fontSize: Math.min(width * 0.04, 20),
+        textAlign: "center",
+        marginBottom: height * 0.02,
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: theme.colors.neonOrange,
+        padding: width * 0.02,
+        marginVertical: height * 0.01,
+        color: theme.colors.textPrimary,
+        fontFamily: theme.fonts.body || "monospace",
+        fontSize: Math.min(width * 0.035, 14),
+        borderRadius: 5,
+        backgroundColor: theme.colors.darkGray,
+    },
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: "#0d1b2a",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    loadingText: {
+        color: theme.colors.textPrimary,
+        fontSize: 16,
+        fontFamily: "monospace",
+    },
+});

@@ -1,34 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useContext } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Dimensions } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import NeonText from "../components/NeonText";
 import { theme } from "../styles/theme";
+import { QuestionsContext } from "../context/QuestionsContext";
 
 const { width, height } = Dimensions.get("window");
 
 export default function Home() {
     const [playerName, setPlayerName] = useState("");
     const [numQuestions, setNumQuestions] = useState("4");
-    const [questions, setQuestions] = useState([]);
     const [fontLoaded, setFontLoaded] = useState(false);
     const router = useRouter();
-
-    const loadQuestions = async () => {
-        try {
-            const savedQuestions = await AsyncStorage.getItem("questions");
-            if (savedQuestions) {
-                setQuestions(JSON.parse(savedQuestions));
-            } else {
-                setQuestions([]);
-            }
-        } catch (error) {
-            console.error("Erreur lors du chargement des questions:", error);
-            setQuestions([]);
-        }
-    };
+    const { questions } = useContext(QuestionsContext);
 
     useEffect(() => {
         async function loadResources() {
@@ -45,16 +31,9 @@ export default function Home() {
                 console.error("Erreur lors du chargement des polices:", error);
                 setFontLoaded(true);
             }
-            await loadQuestions();
         }
         loadResources();
     }, []);
-
-    useFocusEffect(
-        useCallback(() => {
-            loadQuestions();
-        }, [])
-    );
 
     const startQuiz = () => {
         const numQ = parseInt(numQuestions, 10);

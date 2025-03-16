@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { theme } from "../styles/theme";
+import { QuestionsContext } from "../context/QuestionsContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -11,6 +12,7 @@ export default function QuestionForm({ onSave }) {
     const [numOptions, setNumOptions] = useState("4");
     const [options, setOptions] = useState(["", "", "", ""]);
     const [correctIndex, setCorrectIndex] = useState(0);
+    const { setQuestions } = useContext(QuestionsContext);
 
     const handleOptionChange = (index, value) => {
         const newOptions = [...options];
@@ -19,13 +21,11 @@ export default function QuestionForm({ onSave }) {
     };
 
     const updateOptions = (num) => {
-        console.log("updateOptions called with:", num);
         setNumOptions(num);
         if (num === "") {
             return;
         }
         const numInt = parseInt(num, 10);
-        console.log("Parsed numInt:", numInt);
         if (isNaN(numInt) || numInt < 2) {
             alert("Veuillez entrer un nombre valide supérieur ou égal à 2 !");
             setNumOptions("4");
@@ -34,6 +34,15 @@ export default function QuestionForm({ onSave }) {
         const newOptions = Array.from({ length: numInt }, (_, i) => options[i] || "");
         setOptions(newOptions);
         if (correctIndex >= numInt) setCorrectIndex(0);
+    };
+
+    const validateOptions = () => {
+        const numInt = parseInt(numOptions, 10);
+        if (numOptions === "" || isNaN(numInt) || numInt < 2) {
+            alert("Veuillez entrer un nombre valide supérieur ou égal à 2 !");
+            setNumOptions("4");
+            setOptions(["", "", "", ""]);
+        }
     };
 
     const addQuestion = async () => {
@@ -47,9 +56,10 @@ export default function QuestionForm({ onSave }) {
         const newQuestion = { question, type, options: finalOptions, correctIndex: finalCorrectIndex };
         const savedQuestions = await AsyncStorage.getItem("questions");
         const questions = savedQuestions ? JSON.parse(savedQuestions) : [];
-        questions.push(newQuestion);
-        await AsyncStorage.setItem("questions", JSON.stringify(questions));
-        onSave(questions);
+        const updatedQuestions = [...questions, newQuestion];
+        await AsyncStorage.setItem("questions", JSON.stringify(updatedQuestions));
+        setQuestions(updatedQuestions);
+        onSave(updatedQuestions);
         setQuestion("");
         setType("qcm");
         setNumOptions("4");
@@ -87,6 +97,7 @@ export default function QuestionForm({ onSave }) {
                     placeholderTextColor={theme.colors.textSecondary}
                     value={numOptions}
                     onChangeText={updateOptions}
+                    onBlur={validateOptions}
                     keyboardType="numeric"
                 />
             )}

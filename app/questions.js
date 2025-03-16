@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
-import { ScrollView, View, Text, TextInput, Button, Alert, StyleSheet, Dimensions } from "react-native";
+import { useState, useEffect, useContext, useRef } from "react";
+import { ScrollView, View, Text, TextInput, Button, Alert, StyleSheet, Dimensions, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import QuestionForm from "../components/QuestionForm";
 import NeonText from "../components/NeonText";
 import { theme } from "../styles/theme";
+import { QuestionsContext } from "../context/QuestionsContext";
 
 const { width, height } = Dimensions.get("window");
 
 export default function Questions() {
-    const [questions, setQuestions] = useState([]);
     const [editingIndex, setEditingIndex] = useState(null);
     const [editQuestion, setEditQuestion] = useState("");
     const [editType, setEditType] = useState("qcm");
@@ -18,6 +18,8 @@ export default function Questions() {
     const [editOptions, setEditOptions] = useState(["", "", "", ""]);
     const [editCorrectIndex, setEditCorrectIndex] = useState(0);
     const [fontLoaded, setFontLoaded] = useState(false);
+    const { questions, setQuestions, loadQuestions } = useContext(QuestionsContext);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         async function loadResources() {
@@ -34,15 +36,6 @@ export default function Questions() {
                 console.error("Erreur lors du chargement des polices:", error);
                 setFontLoaded(true);
             }
-
-            const loadQuestions = async () => {
-                try {
-                    const savedQuestions = await AsyncStorage.getItem("questions");
-                    if (savedQuestions) setQuestions(JSON.parse(savedQuestions));
-                } catch (error) {
-                    console.error("Erreur lors du chargement des questions:", error);
-                }
-            };
             loadQuestions();
         }
         loadResources();
@@ -116,6 +109,82 @@ export default function Questions() {
         setEditingIndex(null);
     };
 
+    const exportQuestions = async () => {
+        try {
+            console.log("Exporting questions...", questions);
+            if (!questions || questions.length === 0) {
+                Alert.alert("Erreur", "Aucune question à exporter !");
+                return;
+            }
+
+            const jsonData = JSON.stringify(questions, null, 2); // Formater avec indentation
+            const blob = new Blob([jsonData], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "questions.json";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            console.log("Download initiated, showing success alert...");
+            Alert.alert("Succès", "Questions exportées en JSON avec succès !");
+        } catch (error) {
+            console.error("Export error:", error);
+            Alert.alert("Erreur", "Échec de l'exportation des questions en JSON. Détails : " + error.message);
+        }
+    };
+
+    const importQuestions = (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            Alert.alert("Erreur", "Aucun fichier sélectionné !");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!Array.isArray(importedData)) {
+                    throw new Error("Le fichier doit contenir un tableau de questions.");
+                }
+
+                const isValid = importedData.every((q) => {
+                    return (
+                        typeof q.question === "string" &&
+                        typeof q.type === "string" &&
+                        Array.isArray(q.options) &&
+                        typeof q.correctIndex === "number" &&
+                        q.correctIndex >= 0 &&
+                        q.correctIndex < q.options.length
+                    );
+                });
+
+                if (!isValid) {
+                    throw new Error("Certaines questions importées ont un format invalide.");
+                }
+
+                const updatedQuestions = [...importedData];
+                await AsyncStorage.setItem("questions", JSON.stringify(updatedQuestions));
+                setQuestions(updatedQuestions);
+                loadQuestions();
+
+                Alert.alert("Succès", "Questions importées avec succès !");
+            } catch (error) {
+                console.error("Import error:", error);
+                Alert.alert("Erreur", "Échec de l'importation des questions : " + error.message);
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const refreshQuestions = async () => {
+        await loadQuestions();
+        Alert.alert("Succès", "Questions rafraîchies !");
+    };
+
     if (!fontLoaded) {
         return (
             <View style={styles.loadingContainer}>
@@ -125,15 +194,36 @@ export default function Questions() {
     }
 
     return (
-        <LinearGradient
-            colors={["#0d1b2a", "#1a1a1a"]}
-            style={styles.gradient}
-        >
+        <LinearGradient colors={["#0d1b2a", "#1a1a1a"]} style={styles.gradient}>
             <ScrollView contentContainerStyle={styles.container}>
                 <NeonText style={styles.title}>Gérer le Questionnaire</NeonText>
                 <QuestionForm onSave={addQuestion} />
                 <View style={styles.questionsContainer}>
                     <Text style={styles.subtitle}>Questions Créées</Text>
+                    <View style={styles.buttonGroup}>
+                        <Button
+                            title="Exporter les questions"
+                            onPress={exportQuestions}
+                            color={theme.colors.electricBlue}
+                        />
+                        <Button
+                            title="Importer des questions"
+                            onPress={() => fileInputRef.current && fileInputRef.current.click()}
+                            color={theme.colors.neonOrange}
+                        />
+                        <Button
+                            title="Rafraîchir"
+                            onPress={refreshQuestions}
+                            color={theme.colors.electricBlue}
+                        />
+                        <input
+                            type="file"
+                            accept="application/json"
+                            ref={fileInputRef}
+                            style={{ display: "none" }}
+                            onChange={importQuestions}
+                        />
+                    </View>
                     {questions.length === 0 ? (
                         <Text style={styles.text}>Aucune question créée.</Text>
                     ) : (
@@ -296,7 +386,8 @@ const styles = StyleSheet.create({
     buttonGroup: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginTop: height * 0.015,
+        marginVertical: height * 0.015,
+        flexWrap: "wrap",
     },
     text: {
         color: theme.colors.textPrimary,

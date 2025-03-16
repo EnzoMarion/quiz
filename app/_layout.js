@@ -3,10 +3,11 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Text } from "react-native";
 import Header from "../components/Header";
 import { theme } from "../styles/theme";
+import { QuestionsProvider } from "../context/QuestionsContext";
 
 export default function Layout() {
     return (
-        <>
+        <QuestionsProvider>
             <Header />
             <Tabs
                 screenOptions={{
@@ -96,6 +97,6 @@ export default function Layout() {
                     }}
                 />
             </Tabs>
-        </>
+        </QuestionsProvider>
     );
 }

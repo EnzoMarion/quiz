@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { View, Text, TouchableOpacity, Button, StyleSheet, Dimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
-import NeonText from "../components/NeonText";
 import { theme } from "../styles/theme";
+import { QuestionsContext } from "../context/QuestionsContext";
 
 const { width, height } = Dimensions.get("window");
 
 export default function Quiz() {
-    const { playerName, questions: questionsStr, numQuestions } = useLocalSearchParams();
-    const questions = JSON.parse(questionsStr);
+    const { playerName, numQuestions } = useLocalSearchParams();
+    const { questions } = useContext(QuestionsContext);
     const totalQuestions = parseInt(numQuestions, 10);
     const router = useRouter();
 
@@ -56,7 +56,7 @@ export default function Quiz() {
             shuffleOptions(shuffled[0]);
         }
         loadResources();
-    }, [playerName, questionsStr, numQuestions]);
+    }, [playerName, questions, numQuestions]);
 
     const shuffleOptions = (question) => {
         const options = [...question.options];
@@ -65,7 +65,7 @@ export default function Quiz() {
 
         for (let i = options.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [options[i], options[j]] = [options[j], options[i]];
+            [options[i], options[j]] = [options[j], options[i]]; // Correction de la syntaxe de déstructuration
         }
 
         const newCorrectIndex = options.indexOf(correctAnswer);
@@ -128,9 +128,9 @@ export default function Quiz() {
             style={styles.gradient}
         >
             <View style={styles.container}>
-                <NeonText style={styles.question}>
+                <Text style={styles.question}>
                     {quizQuestions[currentIndex]?.question}
-                </NeonText>
+                </Text>
                 {shuffledOptions.map((opt, index) => (
                     <TouchableOpacity
                         key={index}
@@ -168,8 +168,10 @@ const styles = StyleSheet.create({
         paddingVertical: height * 0.02,
     },
     question: {
-        fontSize: Math.min(width * 0.04, 18),
+        color: "#fff",
+        fontSize: Math.min(width * 0.06, 24),
         marginBottom: height * 0.02,
+        fontFamily: theme.fonts.body || "monospace",
     },
     optionButton: {
         padding: width * 0.02,

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Dimensions } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,6 +15,20 @@ export default function Home() {
     const [questions, setQuestions] = useState([]);
     const [fontLoaded, setFontLoaded] = useState(false);
     const router = useRouter();
+
+    const loadQuestions = async () => {
+        try {
+            const savedQuestions = await AsyncStorage.getItem("questions");
+            if (savedQuestions) {
+                setQuestions(JSON.parse(savedQuestions));
+            } else {
+                setQuestions([]);
+            }
+        } catch (error) {
+            console.error("Erreur lors du chargement des questions:", error);
+            setQuestions([]);
+        }
+    };
 
     useEffect(() => {
         async function loadResources() {
@@ -31,19 +45,16 @@ export default function Home() {
                 console.error("Erreur lors du chargement des polices:", error);
                 setFontLoaded(true);
             }
-
-            const loadQuestions = async () => {
-                try {
-                    const savedQuestions = await AsyncStorage.getItem("questions");
-                    if (savedQuestions) setQuestions(JSON.parse(savedQuestions));
-                } catch (error) {
-                    console.error("Erreur lors du chargement des questions:", error);
-                }
-            };
-            loadQuestions();
+            await loadQuestions();
         }
         loadResources();
     }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadQuestions();
+        }, [])
+    );
 
     const startQuiz = () => {
         const numQ = parseInt(numQuestions, 10);

@@ -1,12 +1,14 @@
 import { View, Image, StyleSheet, Dimensions } from "react-native";
 
+import logo from "../assets/images/logo.png";
+
 const { width } = Dimensions.get("window");
 
 export default function Header() {
     return (
         <View style={styles.header}>
             <Image
-                source={require("../assets/images/logo.png")}
+                source={logo}
                 style={styles.logo}
                 resizeMode="contain"
             />
